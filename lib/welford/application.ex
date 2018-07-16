@@ -5,7 +5,7 @@ defmodule Welford.Application do
 
   def start(_type, _args) do
     children = [
-      {Welford.Twin, "battery1"},
+      {Welford.Twin, "battery1"}
     ]
 
     opts = [strategy: :one_for_one, name: Welford.Supervisor]

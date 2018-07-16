@@ -22,24 +22,16 @@ defmodule Welford.Twin do
   end
 
   def handle_call({:update, hour, new_value}, _from, state) do
-    hour_state = get_hour_state(state, hour)
+    hour_state = Map.get(state, hour)
     new_hour_state = Variance.update(hour_state, new_value)
 
-    {:reply, :ok, put_hour_state(state, hour, new_hour_state)}
+    {:reply, :ok, Map.put(state, hour, new_hour_state)}
   end
 
   def handle_call({:finalize, hour}, _from, state) do
-    hour_state = get_hour_state(state, hour)
+    hour_state = Map.get(state, hour)
     reply = Variance.finalize(hour_state)
 
     {:reply, reply, state}
-  end
-
-  defp get_hour_state(map, hour) do
-    Map.get(map, hour)
-  end
-
-  defp put_hour_state(map, hour, hour_state) do
-    Map.put(map, hour, hour_state)
   end
 end

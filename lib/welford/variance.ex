@@ -26,7 +26,7 @@ defmodule Welford.Variance do
     {mean, variance, sample_variance} =
       {state.mean, state.m2 / state.count, state.m2 / (state.count - 1)}
 
-    {:ok, %{mean: mean, variance: variance, sample_variance: sample_variance}}
+    {:ok, %{count: state.count, mean: mean, variance: variance, sample_variance: sample_variance}}
   end
 
   @spec mean(VarianceState.t()) :: float | {:error, term}
