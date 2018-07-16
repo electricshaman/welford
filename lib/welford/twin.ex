@@ -1,46 +1,45 @@
 defmodule Welford.Twin do
   use GenServer
 
+  alias Welford.{Variance, VarianceState}
+
   def start_link(id, _opts \\ []) do
     GenServer.start_link(__MODULE__, [], name: {:global, id})
   end
 
   def init([]) do
-    {:ok, %{count: 0, mean: 0.0, m2: 0.0}}
+    # Simple example of tracking multiple windows, e.g., 24 hours
+    state = Enum.into(0..23, %{}, fn k -> {k, VarianceState.new()} end)
+    {:ok, state}
   end
 
-  def update(id, new_value) do
-    GenServer.call({:global, id}, {:update, new_value})
+  def update(id, hour, new_value) do
+    GenServer.call({:global, id}, {:update, hour, new_value})
   end
 
-  def finalize(id) do
-    GenServer.call({:global, id}, :finalize)
+  def finalize(id, hour) do
+    GenServer.call({:global, id}, {:finalize, hour})
   end
 
-  def handle_call({:update, new_value}, _from, %{count: count, mean: mean, m2: m2} = state) do
-    # Source: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
-    count = count + 1
-    delta = new_value - mean
-    mean = mean + delta / count
-    delta2 = new_value - mean
-    m2 = m2 + delta * delta2
+  def handle_call({:update, hour, new_value}, _from, state) do
+    hour_state = get_hour_state(state, hour)
+    new_hour_state = Variance.update(hour_state, new_value)
 
-    new_state =
-      state
-      |> Map.put(:count, count)
-      |> Map.put(:mean, mean)
-      |> Map.put(:m2, m2)
-
-    {:reply, :ok, new_state}
+    {:reply, :ok, put_hour_state(state, hour, new_hour_state)}
   end
 
-  def handle_call(:finalize, _from, %{count: count} = state) when count < 2 do
-    {:reply, {:error, :insufficient_count}, state}
+  def handle_call({:finalize, hour}, _from, state) do
+    hour_state = get_hour_state(state, hour)
+    reply = Variance.finalize(hour_state)
+
+    {:reply, reply, state}
   end
 
-  def handle_call(:finalize, _from, %{count: count, mean: mean, m2: m2} = state) do
-    {mean, variance, sample_variance} = {mean, m2 / count, m2 / (count - 1)}
-    stats = %{mean: mean, variance: variance, sample_variance: sample_variance}
-    {:reply, {:ok, stats}, state}
+  defp get_hour_state(map, hour) do
+    Map.get(map, hour)
+  end
+
+  defp put_hour_state(map, hour, hour_state) do
+    Map.put(map, hour, hour_state)
   end
 end
